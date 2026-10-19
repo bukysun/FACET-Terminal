@@ -32,6 +32,7 @@ def main():
                 [train_python, str(script / "prepare.py"), "--project", str(args.project), "--output", str(args.run / "data")],
                 [train_python, str(script / "validate_labels.py"), "--data", str(args.run / "data")],
                 [sys.executable, str(script / "configure.py"), "--project", str(args.project), "--run", str(args.run)],
+                [train_python, str(script / "validate_train_configs.py"), "--run", str(args.run)],
                 ["/root/miniconda3/envs/facet-rollout/bin/python", str(script / "validate_configs.py"), "--run", str(args.run)],
             ]
             if resuming:

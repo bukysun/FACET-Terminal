@@ -41,6 +41,10 @@ def resources():
 
 
 def verify_inputs(run):
+    training = json.loads((run / "train_config_validation.json").read_text())
+    assert training["passed"]
+    for name, sha in training["configs"].items():
+        assert digest(run / name) == sha, f"Training config changed since CLI check: {name}"
     for name, sha in json.loads((run / "input_hashes.json").read_text()).items():
         assert digest(run / name) == sha, f"Frozen input changed: {name}"
     validation = json.loads((run / "data/validation.json").read_text())
