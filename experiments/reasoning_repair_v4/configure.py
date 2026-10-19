@@ -46,14 +46,16 @@ def main():
         "output_dir": str(run / "models/v4"), "logging_steps": 1,
         "save_strategy": "epoch", "save_only_model": True, "save_total_limit": 1,
         "report_to": "none", "plot_loss": True}
-    dump(configs / "train.json", train)
+    # JSON syntax is valid YAML. Use .yaml because this installed LF version's
+    # JSON reader passes a Path to json.load instead of opening the file.
+    dump(configs / "train.yaml", train)
     pilot = copy.deepcopy(train)
     pilot.update(dataset="pilot", max_steps=8, num_train_epochs=1.0,
                  output_dir=str(run / "models/pilot"), save_strategy="no", plot_loss=False)
-    dump(configs / "pilot.json", pilot)
+    dump(configs / "pilot.yaml", pilot)
     control = copy.deepcopy(train)
     control.update(dataset="control", output_dir=str(run / "models/control"))
-    dump(configs / "control_train.json", control)
+    dump(configs / "control_train.yaml", control)
     environment = json.loads((project / "jobs/facet-sft-v3-tb21-k3/config.json").read_text())["environment"]
     for name in ["base", "official", "v4"]:
         context = 32768
@@ -102,7 +104,7 @@ def main():
     print("Hashing model and runtime inputs before the run", flush=True)
     dump(run / "runtime_inputs.json", {str(p): digest(p) for p in sorted(runtime_files)})
     dump(run / "input_hashes.json", {str(p.relative_to(run)): digest(p)
-        for p in sorted(configs.glob("*.json"))} | {"protocol.json": digest(run / "protocol.json"),
+        for p in sorted(configs.iterdir()) if p.is_file()} | {"protocol.json": digest(run / "protocol.json"),
             "benchmark_manifest.json": digest(run / "benchmark_manifest.json"),
             "data/manifest.json": digest(data / "manifest.json"),
             "data/validation.json": digest(data / "validation.json"),

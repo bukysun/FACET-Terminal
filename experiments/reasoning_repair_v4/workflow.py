@@ -187,7 +187,7 @@ def worker(project, run):
                 state(run, "pilot_training" if phase == "pilot" else "full_training")
                 assert resources()["all_eight_idle"], "GPU resources changed before starting training"
                 run_child([str(ENVS / "facet-train2/bin/llamafactory-cli"), "train",
-                           str(run / f"configs/{phase}.json")], project, run / f"{phase}.log",
+                           str(run / f"configs/{phase}.yaml")], project, run / f"{phase}.log",
                           child_env(str(ENVS / "swift")))
                 result = json.loads((model_dir / "train_results.json").read_text())
                 assert math.isfinite(result["train_loss"]), "Nonfinite training loss"
