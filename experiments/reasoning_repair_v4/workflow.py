@@ -23,6 +23,8 @@ def state(run, stage, **fields):
     path = run / "state.json"
     previous = json.loads(path.read_text()) if path.exists() else {}
     value = previous | fields | {"stage": stage, "updated_at_epoch": time.time()}
+    if "error" not in fields:
+        value.pop("error", None)
     temporary = path.with_suffix(".tmp")
     dump(temporary, value)
     temporary.replace(path)
@@ -97,6 +99,7 @@ def get_json(url):
 
 
 def start_server(model, name, project, run):
+    assert resources()["all_eight_idle"], "GPU resources changed before starting our server"
     # An existing listener is never killed or replaced.
     with socket.socket() as test:
         assert test.connect_ex(("127.0.0.1", 18040)) != 0, "Port 18040 is already occupied"
@@ -182,6 +185,7 @@ def worker(project, run):
                 if model_dir.exists() and any(model_dir.iterdir()):
                     raise RuntimeError(f"Partial output exists: {model_dir}; inspect before retrying")
                 state(run, "pilot_training" if phase == "pilot" else "full_training")
+                assert resources()["all_eight_idle"], "GPU resources changed before starting training"
                 run_child([str(ENVS / "facet-train2/bin/llamafactory-cli"), "train",
                            str(run / f"configs/{phase}.json")], project, run / f"{phase}.log",
                           child_env(str(ENVS / "swift")))

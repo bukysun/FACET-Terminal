@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from prepare import make_example, valid_action
 from score import summarize
-from workflow import resources
+from workflow import resources, state
 
 
 class RegressionTests(unittest.TestCase):
@@ -55,6 +55,13 @@ class RegressionTests(unittest.TestCase):
             self.assertFalse(resources()["all_eight_idle"])
         with patch("subprocess.check_output", side_effect=[output, ""]):
             self.assertTrue(resources()["all_eight_idle"])
+
+    def test_successful_state_does_not_keep_old_failure(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = Path(root)
+            state(run, "preparation_failed", error="old failure")
+            state(run, "ready")
+            self.assertNotIn("error", json.loads((run / "state.json").read_text()))
 
 
 if __name__ == "__main__":
