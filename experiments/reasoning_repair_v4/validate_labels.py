@@ -17,14 +17,15 @@ def main():
     args = parser.parse_args()
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    from transformers import AutoTokenizer
+    from transformers import AutoTokenizer, AutoProcessor
     from llamafactory.data.template import get_template_and_fix_tokenizer
     from llamafactory.data.processor.supervised import SupervisedDatasetProcessor
     from llamafactory.hparams import DataArguments
     tok = AutoTokenizer.from_pretrained(args.model, local_files_only=True)
     data_args = DataArguments(template="qwen3_5", mask_history=True, enable_thinking=True, cutoff_len=32768)
     template = get_template_and_fix_tokenizer(tok, data_args)
-    processor = SupervisedDatasetProcessor(template=template, tokenizer=tok, processor=None, data_args=data_args)
+    model_processor = AutoProcessor.from_pretrained(args.model, local_files_only=True)
+    processor = SupervisedDatasetProcessor(template=template, tokenizer=tok, processor=model_processor, data_args=data_args)
     manifest = json.loads((args.data / "manifest.json").read_text())
     for name, sha in manifest["files"].items():
         assert digest(args.data / name) == sha, f"Changed dataset: {name}"
