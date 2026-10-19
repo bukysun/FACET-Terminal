@@ -59,7 +59,7 @@ def verify_inputs(run):
         assert digest(name) == sha, f"Model or installed runtime changed: {name}"
 
 
-def child_env(cuda_home=None):
+def child_env(cuda_home=None, bin_dir=None):
     env = os.environ.copy()
     for key in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "all_proxy"]:
         env.pop(key, None)
@@ -68,6 +68,8 @@ def child_env(cuda_home=None):
                NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost", DOCKER_BUILDKIT="1")
     if cuda_home:
         env["CUDA_HOME"] = cuda_home
+    if bin_dir:
+        env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
     return env
 
 
@@ -82,6 +84,10 @@ def stop_own(process):
 
 
 def run_child(command, project, log, env):
+    # Absolute console entrypoints do not activate their environment. LF invokes
+    # torchrun by name, so its own environment must lead PATH as well.
+    env = env.copy()
+    env["PATH"] = str(Path(command[0]).parent) + os.pathsep + env.get("PATH", "/usr/local/bin:/usr/bin:/bin")
     with log.open("a") as output:
         process = subprocess.Popen(command, cwd=project, env=env, stdout=output,
                                    stderr=subprocess.STDOUT, start_new_session=True)
@@ -112,7 +118,8 @@ def start_server(model, name, project, run):
         "--port", "18040", "--served-model-name", f"facet-v4-{name}", "--max-model-len", "32768",
         "--reasoning-parser", "qwen3", "--data-parallel-size", "8", "--gpu-memory-utilization", "0.85",
         "--generation-config", "vllm", "--seed", "42"]
-    process = subprocess.Popen(command, cwd=project, env=child_env(str(ENVS / "vllm-serve")),
+    process = subprocess.Popen(command, cwd=project,
+                               env=child_env(str(ENVS / "vllm-serve"), ENVS / "vllm-serve/bin"),
                                stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     log.close()
     try:

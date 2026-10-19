@@ -7,10 +7,14 @@ from unittest.mock import patch
 
 from prepare import make_example, valid_action
 from score import summarize
-from workflow import resources, state
+from workflow import child_env, resources, state
 
 
 class RegressionTests(unittest.TestCase):
+    def test_console_environment_precedes_system_path(self):
+        env = child_env(bin_dir="/example/train/bin")
+        self.assertEqual(env["PATH"].split(":")[0], "/example/train/bin")
+
     def test_each_action_retains_current_reasoning_only(self):
         messages = [{"role": "user", "content": "task"},
             {"role": "assistant", "content": "action one", "reasoning_content": "reason one"},
