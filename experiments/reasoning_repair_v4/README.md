@@ -79,6 +79,10 @@ overwritten or retried. Only child processes created by this worker are stopped.
 Global Docker cleanup, retagging base images, killing other GPU jobs, and deleting
 old experiments are prohibited.
 
+After migration to the data disk, disk gates and child monitoring check both the
+project filesystem and `/`, because Docker images and writable layers remain on
+the system disk. The original project path remains available through a symlink.
+
 ## Evaluation and reporting
 
 The three arms are base Qwen3.5-4B, the official FACET 4B checkpoint, and the new

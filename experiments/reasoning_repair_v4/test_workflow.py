@@ -7,10 +7,17 @@ from unittest.mock import patch
 
 from prepare import make_example, valid_action
 from score import summarize
-from workflow import child_env, resources, state
+from workflow import child_env, free_disk_bytes, resources, state
+from types import SimpleNamespace
 
 
 class RegressionTests(unittest.TestCase):
+    def test_system_disk_is_checked_after_project_migration(self):
+        with patch("workflow.shutil.disk_usage", side_effect=[
+            SimpleNamespace(free=1000), SimpleNamespace(free=5)
+        ]):
+            self.assertEqual(free_disk_bytes(Path("/data/project")), 5)
+
     def test_console_environment_precedes_system_path(self):
         env = child_env(bin_dir="/example/train/bin")
         self.assertEqual(env["PATH"].split(":")[0], "/example/train/bin")

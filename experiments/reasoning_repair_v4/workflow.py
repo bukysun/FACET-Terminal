@@ -83,6 +83,11 @@ def stop_own(process):
             process.wait()
 
 
+def free_disk_bytes(project):
+    # Docker still stores images and writable layers on / after project migration.
+    return min(shutil.disk_usage(project).free, shutil.disk_usage("/").free)
+
+
 def run_child(command, project, log, env):
     # Absolute console entrypoints do not activate their environment. LF invokes
     # torchrun by name, so its own environment must lead PATH as well.
@@ -93,7 +98,7 @@ def run_child(command, project, log, env):
                                    stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while process.poll() is None:
-                if shutil.disk_usage(project).free < 10 * (1 << 30):
+                if free_disk_bytes(project) < 10 * (1 << 30):
                     raise RuntimeError("Less than 10 GiB disk left; stopping our own child only")
                 time.sleep(5)
             if process.returncode:
@@ -178,7 +183,7 @@ def worker(project, run):
         if not check["all_eight_idle"]:
             state(run, "waiting_gpu", worker_pid=None, resources=check)
             return
-        if shutil.disk_usage(project).free < 40 * (1 << 30):
+        if free_disk_bytes(project) < 40 * (1 << 30):
             state(run, "waiting_disk", worker_pid=None, error="Need at least 40 GiB free before training")
             return
         try:
@@ -215,7 +220,7 @@ def worker(project, run):
                 job = run / "eval" / f"v4-{name}"
                 if job.exists():
                     raise RuntimeError(f"Partial evaluation exists: {job}; inspect before resuming")
-                assert shutil.disk_usage(project).free > 20 * (1 << 30), "Need 20 GiB for evaluation"
+                assert free_disk_bytes(project) > 20 * (1 << 30), "Need 20 GiB on project and system disks for evaluation"
                 state(run, f"evaluating_{name}")
                 process = start_server(model, name, project, run)
                 try:
