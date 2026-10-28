@@ -83,6 +83,12 @@ After migration to the data disk, disk gates and child monitoring check both the
 project filesystem and `/`, because Docker images and writable layers remain on
 the system disk. The original project path remains available through a symlink.
 
+For a user-authorized evaluation resume, archive unfinished trial directories
+outside the active job first. A private `resume_<arm>.json` review record must
+freeze the existing job config hash and each preserved result hash. The worker
+uses Harbor resume with its default completed-error deletion disabled. All
+completed outcomes remain; only interrupted or never-started attempts run again.
+
 ## Evaluation and reporting
 
 The three arms are base Qwen3.5-4B, the official FACET 4B checkpoint, and the new

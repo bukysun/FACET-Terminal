@@ -7,11 +7,33 @@ from unittest.mock import patch
 
 from prepare import make_example, valid_action
 from score import summarize
-from workflow import child_env, free_disk_bytes, resources, state
+from workflow import child_env, evaluation_command, free_disk_bytes, resources, state
+from prepare import digest
 from types import SimpleNamespace
 
 
 class RegressionTests(unittest.TestCase):
+    def test_resume_requires_review_and_preserves_completed_errors(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = Path(root)
+            job = run / "eval/v4-base"
+            trial = job / "task__one"
+            trial.mkdir(parents=True)
+            (job / "config.json").write_text("{}")
+            result = trial / "result.json"
+            result.write_text('{"exception_info":{"exception_type":"CancelledError"}}')
+            with self.assertRaises(RuntimeError):
+                evaluation_command(run, "base")
+            (run / "resume_base.json").write_text(json.dumps({
+                "job_config_sha256": digest(job / "config.json"),
+                "preserved_results": {"task__one/result.json": digest(result)}}))
+            command = evaluation_command(run, "base")
+            self.assertIn("resume", command)
+            self.assertEqual(command[-1], "__FACET_KEEP_ALL_COMPLETED_RESULTS__")
+            (job / "unfinished").mkdir()
+            with self.assertRaises(RuntimeError):
+                evaluation_command(run, "base")
+
     def test_system_disk_is_checked_after_project_migration(self):
         with patch("workflow.shutil.disk_usage", side_effect=[
             SimpleNamespace(free=1000), SimpleNamespace(free=5)

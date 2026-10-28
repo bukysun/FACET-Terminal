@@ -167,6 +167,27 @@ def pilot_sanity(project, run):
         time.sleep(10)
 
 
+def evaluation_command(run, name):
+    harbor = str(ENVS / "facet-rollout/bin/harbor")
+    job = run / "eval" / f"v4-{name}"
+    if not job.exists():
+        return [harbor, "run", "-c", str(run / f"configs/eval_{name}.json")]
+    approval = run / f"resume_{name}.json"
+    if not approval.exists():
+        raise RuntimeError(f"Partial evaluation exists: {job}; inspect before resuming")
+    record = json.loads(approval.read_text())
+    assert digest(job / "config.json") == record["job_config_sha256"], "Resume config changed"
+    for relative, sha in record["preserved_results"].items():
+        assert digest(job / relative) == sha, f"Existing result changed: {relative}"
+    for trial in job.iterdir():
+        if trial.is_dir() and not (trial / "result.json").exists():
+            raise RuntimeError(f"Archive unfinished trial before resuming: {trial}")
+    # Harbor defaults to deleting CancelledError results. Override that filter
+    # with an absent type so all completed outcomes, including errors, survive.
+    return [harbor, "jobs", "resume", "--job-path", str(job),
+            "--filter-error-type", "__FACET_KEEP_ALL_COMPLETED_RESULTS__"]
+
+
 def worker(project, run):
     with (run / "workflow.lock").open("a") as lock:
         try:
@@ -218,14 +239,12 @@ def worker(project, run):
                 if done.exists():
                     continue
                 job = run / "eval" / f"v4-{name}"
-                if job.exists():
-                    raise RuntimeError(f"Partial evaluation exists: {job}; inspect before resuming")
+                command = evaluation_command(run, name)
                 assert free_disk_bytes(project) > 20 * (1 << 30), "Need 20 GiB on project and system disks for evaluation"
                 state(run, f"evaluating_{name}")
                 process = start_server(model, name, project, run)
                 try:
-                    run_child([str(ENVS / "facet-rollout/bin/harbor"), "run", "-c",
-                               str(run / f"configs/eval_{name}.json")], project, run / f"eval_{name}.log", child_env())
+                    run_child(command, project, run / f"eval_{name}.log", child_env())
                 finally:
                     stop_own(process)
                     time.sleep(10)
